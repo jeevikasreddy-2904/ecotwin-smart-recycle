@@ -246,7 +246,7 @@ function Result({ r, confirmed, scanId, changing, setChanging, onConfirm }: { r:
   );
 }
 
-export function Lists({ r }: { r: Pick<Classification, "preparation" | "reuse" | "disposal"> }) {
+function Lists({ r }: { r: Pick<Classification, "preparation" | "reuse" | "disposal"> }) {
   const blocks = [
     { t: "Prepare", xs: r.preparation },
     { t: "Reuse ideas", xs: r.reuse },
