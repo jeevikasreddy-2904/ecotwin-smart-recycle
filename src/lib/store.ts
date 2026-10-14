@@ -18,11 +18,11 @@ export type Classification = {
 export type ScanRecord = {
   id: string;
   createdAt: number;
-  thumb?: string; // small local-only data URL
+  thumb?: string | undefined; // small local-only data URL
   status: "classified" | "unclear";
   result: Classification;
-  confirmedCategory?: Category;
-  confirmedAt?: number;
+  confirmedCategory?: Category | undefined;
+  confirmedAt?: number | undefined;
   demo?: boolean;
 };
 
@@ -123,7 +123,7 @@ export function seedDemo() {
   const day = 86400000;
   const recs: ScanRecord[] = [];
   for (let i = 0; i < 46; i++) {
-    const [cat, name] = DEMO_ITEMS[(i * 7 + (i % 3)) % DEMO_ITEMS.length];
+    const [cat, name] = DEMO_ITEMS[(i * 7 + (i % 3)) % DEMO_ITEMS.length]!;
     const t = now - Math.floor((i / 46) * 33 * day) - (i % 5) * 3600000;
     const confirmed = i % 6 !== 0;
     recs.push({
