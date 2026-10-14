@@ -25,7 +25,7 @@ export const Route = createFileRoute("/scanner")({
   component: Scanner,
 });
 
-type Item = { id: string; preview: string; status: "ready" | "scanning" | "done" | "unclear" | "error"; error?: string; result?: Classification; scanId?: string };
+type Item = { id: string; preview: string; status: "ready" | "scanning" | "done" | "unclear" | "error"; error?: string | undefined; result?: Classification; scanId?: string };
 
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
 
@@ -54,7 +54,7 @@ function Scanner() {
       try { added.push({ id: uid(), preview: await resize(f, 1280), status: "ready" }); }
       catch { toast.error(`${f.name}: could not read this image.`); }
     }
-    if (added.length) { setItems((xs) => [...xs, ...added]); setSel(added[0].id); }
+    if (added.length) { setItems((xs) => [...xs, ...added]); setSel(added[0]!.id); }
   };
   const addDataUrl = async (d: string) => {
     const it: Item = { id: uid(), preview: await resize(d, 1280), status: "ready" };
@@ -66,7 +66,7 @@ function Scanner() {
     try {
       const r = await classifyWaste({ data: { image: it.preview } });
       if (!r.ok) { patch(it.id, { status: "error", error: r.error }); toast.error(r.error); return; }
-      const res = r.data as Classification;
+      const res = JSON.parse(r.data) as Classification;
       if (!CATEGORIES.includes(res.category)) res.category = "unknown";
       const unclear = !res.is_clear || res.category === "unknown" || res.confidence < 0.4;
       const thumb = await resize(it.preview, 160, 0.7);
@@ -209,7 +209,7 @@ const RECYC: Record<Classification["recyclability"], string> = {
   special: "Needs special disposal",
 };
 
-function Result({ r, confirmed, scanId, changing, setChanging, onConfirm }: { r: Classification; confirmed?: Category; scanId: string; changing: boolean; setChanging: (b: boolean) => void; onConfirm: (c: Category) => void }) {
+function Result({ r, confirmed, scanId, changing, setChanging, onConfirm }: { r: Classification; confirmed?: Category | undefined; scanId: string; changing: boolean; setChanging: (b: boolean) => void; onConfirm: (c: Category) => void }) {
   const pct = Math.round(Math.max(0, Math.min(1, r.confidence)) * 100);
   return (
     <div className="space-y-5">

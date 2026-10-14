@@ -30,7 +30,7 @@ Rules:
 - Keep each list item short (max ~15 words), 1-4 items per list. Empty lists are fine.
 - Disposal guidance must be general; never claim specific local rules. Add a safety_notice for hazardous, sharp, damaged or composite items, otherwise null.`;
 
-type Out = { ok: true; data: unknown } | { ok: false; error: string; code: number };
+type Out = { ok: true; data: string } | { ok: false; error: string; code: number };
 
 export const classifyWaste = createServerFn({ method: "POST" })
   .inputValidator((d: { image: string }) => {
@@ -40,7 +40,7 @@ export const classifyWaste = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data }): Promise<Out> => {
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false, code: 500, error: "AI service is not configured." };
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
@@ -95,7 +95,7 @@ export const classifyWaste = createServerFn({ method: "POST" })
     }
     if (failure && !text) return { ok: false, code: 502, error: failure };
     try {
-      return { ok: true, data: JSON.parse(text) };
+      JSON.parse(text); return { ok: true, data: text };
     } catch {
       return { ok: false, code: 502, error: "The AI returned an unreadable answer. Please try again." };
     }

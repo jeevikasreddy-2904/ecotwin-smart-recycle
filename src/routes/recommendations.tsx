@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import circular from "@/assets/circular.jpg";
 
 export const Route = createFileRoute("/recommendations")({
-  validateSearch: (s: Record<string, unknown>) => ({ scan: typeof s.scan === "string" ? s.scan : undefined, cat: typeof s.cat === "string" ? s.cat : undefined }),
+  validateSearch: (s: Record<string, unknown>): { scan?: string; cat?: string } => ({ ...(typeof s["scan"] === "string" ? { scan: s["scan"] } : {}), ...(typeof s["cat"] === "string" ? { cat: s["cat"] } : {}) }),
   head: () => ({
     meta: [
       { title: "Recycling Recommendations — EcoTwin AI" },
