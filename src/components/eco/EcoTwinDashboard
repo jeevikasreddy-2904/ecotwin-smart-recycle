@@ -1,0 +1,381 @@
+import { useState } from "react";
+import WasteTruckTracker from "@/components/eco/WasteTruckTracker";
+
+const yearlyData = {
+  2025: {
+    goal: 12000,
+    recycled: 8200,
+    composted: 2100,
+    disposed: 3100,
+    co2Saved: 5.8,
+  },
+  2026: {
+    goal: 15000,
+    recycled: 6400,
+    composted: 1800,
+    disposed: 2200,
+    co2Saved: 4.6,
+  },
+  2027: {
+    goal: 18000,
+    recycled: 0,
+    composted: 0,
+    disposed: 0,
+    co2Saved: 0,
+  },
+};
+
+const demoBins = [
+  { id: "BIN-001", name: "Recycling Bin", place: "DSU Campus", fill: 78, type: "Recyclable" },
+  { id: "BIN-002", name: "Organic Waste Bin", place: "Harohalli", fill: 91, type: "Organic" },
+  { id: "BIN-003", name: "Plastic Waste Bin", place: "Industrial Area", fill: 46, type: "Plastic" },
+  { id: "BIN-004", name: "Mixed Waste Bin", place: "Kanakapura", fill: 64, type: "Mixed" },
+];
+
+const demoStops = [
+  { name: "Kanakapura Collection Point", status: "Visited", time: "08:15 AM" },
+  { name: "DSU Campus Smart Bin", status: "Visited", time: "09:05 AM" },
+  { name: "JAIN University Area", status: "Missed", time: "10:10 AM" },
+  { name: "Industrial Area, Harohalli", status: "Visited", time: "11:20 AM" },
+  { name: "Harohalli Bus Stand", status: "Missed", time: "12:00 PM" },
+];
+
+function StatCard({
+  icon,
+  title,
+  value,
+  detail,
+}: {
+  icon: string;
+  title: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <article className="et-card">
+      <div className="et-stat-top">
+        <span className="et-icon">{icon}</span>
+        <span className="et-muted">{title}</span>
+      </div>
+      <div className="et-value">{value}</div>
+      <div className="et-muted et-detail">{detail}</div>
+    </article>
+  );
+}
+
+export default function EcoTwinDashboard() {
+  const [year, setYear] = useState<2025 | 2026 | 2027>(2026);
+  const [binFilter, setBinFilter] = useState("All");
+
+  const data = yearlyData[year];
+  const totalProcessed = data.recycled + data.composted;
+  const progress = Math.min(100, Math.round((totalProcessed / data.goal) * 100));
+  const bins = demoBins.filter(
+    (bin) => binFilter === "All" || bin.type === binFilter,
+  );
+
+  return (
+    <main className="et-dashboard">
+      <style>{`
+        .et-dashboard {
+          --et-bg: #071713; --et-panel: #10251e; --et-border: #244c3c;
+          --et-green: #4ade80; --et-text: #ecfdf5; --et-muted: #9bbdad;
+          min-height: 100vh; padding: 22px; box-sizing: border-box;
+          color: var(--et-text); background: var(--et-bg);
+          font-family: Inter, system-ui, sans-serif;
+        }
+        .et-dashboard * { box-sizing: border-box; }
+        .et-heading {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+        }
+        .et-heading h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); }
+        .et-heading p { margin: 7px 0 0; color: var(--et-muted); }
+        .et-year {
+          padding: 11px 14px; border: 1px solid var(--et-border);
+          border-radius: 10px; background: var(--et-panel);
+          color: var(--et-text); font-size: 15px;
+        }
+        .et-grid {
+          display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px; margin-bottom: 22px;
+        }
+        .et-card, .et-panel {
+          border: 1px solid var(--et-border); border-radius: 17px;
+          background: var(--et-panel); padding: 18px; min-width: 0;
+        }
+        .et-stat-top { display: flex; align-items: center; gap: 9px; }
+        .et-icon { font-size: 24px; }
+        .et-muted { color: var(--et-muted); font-size: 13px; }
+        .et-value { font-size: clamp(24px, 3vw, 32px); font-weight: 800; margin: 15px 0 7px; }
+        .et-detail { line-height: 1.5; }
+        .et-section-title {
+          display: flex; justify-content: space-between; align-items: center;
+          flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+        }
+        .et-section-title h2 { margin: 0; font-size: 19px; }
+        .et-two-col {
+          display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+          gap: 16px; margin-bottom: 20px;
+        }
+        .et-progress-track {
+          height: 13px; width: 100%; border-radius: 20px;
+          background: #294238; overflow: hidden; margin: 14px 0;
+        }
+        .et-progress-fill {
+          height: 100%; border-radius: 20px; background: var(--et-green);
+          transition: width .8s ease;
+        }
+        .et-breakdown { display: grid; gap: 15px; margin-top: 20px; }
+        .et-break-row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+        .et-break-row strong { text-align: right; }
+        .et-bin {
+          padding: 14px 0; border-bottom: 1px solid var(--et-border);
+        }
+        .et-bin:last-child { border-bottom: 0; }
+        .et-bin-top { display: flex; justify-content: space-between; gap: 12px; }
+        .et-bin-name { font-weight: 700; }
+        .et-pill {
+          display: inline-block; padding: 5px 9px; border-radius: 20px;
+          font-size: 11px; font-weight: 800;
+        }
+        .et-green { background: #14532d; color: #bbf7d0; }
+        .et-yellow { background: #713f12; color: #fef3c7; }
+        .et-red { background: #7f1d1d; color: #fecaca; }
+        .et-stop {
+          display: flex; align-items: flex-start; gap: 12px;
+          padding: 13px 0; border-bottom: 1px solid var(--et-border);
+        }
+        .et-stop:last-child { border-bottom: 0; }
+        .et-dot {
+          flex: 0 0 12px; width: 12px; height: 12px;
+          border-radius: 50%; margin-top: 5px;
+        }
+        .et-dot.visited { background: #4ade80; box-shadow: 0 0 10px #4ade8055; }
+        .et-dot.missed { background: #f87171; box-shadow: 0 0 10px #f8717155; }
+        .et-stop-content { flex: 1; min-width: 0; }
+        .et-stop-content strong { display: block; font-size: 14px; }
+        .et-stop-content small { display: block; color: var(--et-muted); margin-top: 5px; }
+        .et-filter {
+          max-width: 100%; padding: 9px; border-radius: 9px;
+          border: 1px solid var(--et-border); background: #0b1c17; color: white;
+        }
+        .et-note { color: var(--et-muted); font-size: 12px; line-height: 1.6; margin-top: 14px; }
+        @media (max-width: 900px) {
+          .et-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .et-two-col { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+          .et-dashboard { padding: 13px; }
+          .et-grid { gap: 9px; }
+          .et-card, .et-panel { padding: 13px; }
+          .et-muted { font-size: 12px; }
+        }
+      `}</style>
+
+      <div className="et-heading">
+        <div>
+          <h1>🌿 EcoTwin AI Dashboard</h1>
+          <p>Smart waste management • Digital twin • Sustainability insights</p>
+        </div>
+        <select
+          className="et-year"
+          value={year}
+          onChange={(event) => setYear(Number(event.target.value) as 2025 | 2026 | 2027)}
+          aria-label="Select sustainability year"
+        >
+          <option value={2025}>Year 2025</option>
+          <option value={2026}>Year 2026</option>
+          <option value={2027}>Year 2027 goal</option>
+        </select>
+      </div>
+
+      <section className="et-grid">
+        <StatCard
+          icon="♻️"
+          title="Recycled"
+          value={`${data.recycled.toLocaleString()} kg`}
+          detail="Material sent for recycling"
+        />
+        <StatCard
+          icon="🌱"
+          title="Composted"
+          value={`${data.composted.toLocaleString()} kg`}
+          detail="Organic waste composted"
+        />
+        <StatCard
+          icon="🗑️"
+          title="Disposed"
+          value={`${data.disposed.toLocaleString()} kg`}
+          detail="Waste sent for disposal"
+        />
+        <StatCard
+          icon="🌍"
+          title="CO₂ avoided"
+          value={`${data.co2Saved.toFixed(1)} t`}
+          detail="Illustrative estimated savings"
+        />
+      </section>
+
+      <section className="et-two-col">
+        <article className="et-panel">
+          <div className="et-section-title">
+            <h2>🎯 Annual Sustainability Goal</h2>
+            <span className="et-pill et-green">{progress}% reached</span>
+          </div>
+          <div className="et-muted">Target: {data.goal.toLocaleString()} kg recycled + composted</div>
+          <div className="et-progress-track">
+            <div className="et-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="et-break-row">
+            <span>Achieved so far</span>
+            <strong>{totalProcessed.toLocaleString()} kg</strong>
+          </div>
+          <div className="et-break-row" style={{ marginTop: 10 }}>
+            <span>Remaining to goal</span>
+            <strong>{Math.max(0, data.goal - totalProcessed).toLocaleString()} kg</strong>
+          </div>
+          <div className="et-breakdown">
+            <div>
+              <div className="et-break-row">
+                <span>Recycling</span><strong>{data.recycled.toLocaleString()} kg</strong>
+              </div>
+              <div className="et-progress-track">
+                <div className="et-progress-fill" style={{ width: `${Math.min(100, (data.recycled / data.goal) * 100)}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="et-break-row">
+                <span>Composting</span><strong>{data.composted.toLocaleString()} kg</strong>
+              </div>
+              <div className="et-progress-track">
+                <div className="et-progress-fill" style={{ width: `${Math.min(100, (data.composted / data.goal) * 100)}%` }} />
+              </div>
+            </div>
+          </div>
+          <p className="et-note">
+            Demo target for {year}. Replace these sample values with verified collection
+            and weighing records before using this for official sustainability reporting.
+          </p>
+        </article>
+
+        <article className="et-panel">
+          <div className="et-section-title">
+            <h2>🧠 Smart Bin Monitoring</h2>
+            <span className="et-pill et-green">{demoBins.length} demo bins</span>
+          </div>
+          <label className="et-muted">
+            Filter bin type{" "}
+            <select
+              className="et-filter"
+              value={binFilter}
+              onChange={(event) => setBinFilter(event.target.value)}
+            >
+              <option>All</option>
+              <option>Recyclable</option>
+              <option>Organic</option>
+              <option>Plastic</option>
+              <option>Mixed</option>
+            </select>
+          </label>
+
+          {bins.map((bin) => (
+            <div className="et-bin" key={bin.id}>
+              <div className="et-bin-top">
+                <div>
+                  <div className="et-bin-name">{bin.name}</div>
+                  <div className="et-muted" style={{ marginTop: 5 }}>
+                    {bin.id} · {bin.place}
+                  </div>
+                </div>
+                <span className={`et-pill ${bin.fill >= 80 ? "et-red" : bin.fill >= 60 ? "et-yellow" : "et-green"}`}>
+                  {bin.fill >= 80 ? "Needs collection" : bin.fill >= 60 ? "Filling up" : "Available"}
+                </span>
+              </div>
+              <div className="et-progress-track">
+                <div
+                  className="et-progress-fill"
+                  style={{
+                    width: `${bin.fill}%`,
+                    background: bin.fill >= 80 ? "#f87171" : bin.fill >= 60 ? "#facc15" : "#4ade80",
+                  }}
+                />
+              </div>
+              <div className="et-break-row">
+                <span className="et-muted">Fill level</span><strong>{bin.fill}%</strong>
+              </div>
+            </div>
+          ))}
+        </article>
+      </section>
+
+      <section className="et-two-col">
+        <article className="et-panel">
+          <div className="et-section-title">
+            <h2>🚛 Route Stop Report</h2>
+            <span className="et-muted">Sample shift data</span>
+          </div>
+          <div className="et-muted" style={{ marginBottom: 12 }}>
+            Green = visited · Red = missed
+          </div>
+          {demoStops.map((stop) => (
+            <div className="et-stop" key={stop.name}>
+              <span className={`et-dot ${stop.status === "Visited" ? "visited" : "missed"}`} />
+              <div className="et-stop-content">
+                <strong>{stop.name}</strong>
+                <small>{stop.time}</small>
+              </div>
+              <span className={`et-pill ${stop.status === "Visited" ? "et-green" : "et-red"}`}>
+                {stop.status}
+              </span>
+            </div>
+          ))}
+          <p className="et-note">
+            Stop statuses above are illustrative demo records. The actual truck route and
+            movement are displayed below from your existing tracker component.
+          </p>
+        </article>
+
+        <article className="et-panel">
+          <div className="et-section-title">
+            <h2>📊 Sustainability Summary</h2>
+          </div>
+          <div className="et-breakdown">
+            <div className="et-break-row">
+              <span>Recycled + composted</span>
+              <strong>{totalProcessed.toLocaleString()} kg</strong>
+            </div>
+            <div className="et-break-row">
+              <span>Total waste recorded</span>
+              <strong>{(totalProcessed + data.disposed).toLocaleString()} kg</strong>
+            </div>
+            <div className="et-break-row">
+              <span>Recovery rate</span>
+              <strong>
+                {totalProcessed + data.disposed > 0
+                  ? `${Math.round((totalProcessed / (totalProcessed + data.disposed)) * 100)}%`
+                  : "0%"}
+              </strong>
+            </div>
+            <div className="et-break-row">
+              <span>Annual target</span>
+              <strong>{data.goal.toLocaleString()} kg</strong>
+            </div>
+          </div>
+          <p className="et-note">
+            Disposal, recycling, composting, and CO₂ figures are demo values, not live
+            sensor readings. CO₂ avoidance is illustrative, not a measured carbon audit.
+          </p>
+        </article>
+      </section>
+
+      <section className="et-panel" style={{ marginBottom: 20 }}>
+        <div className="et-section-title">
+          <h2>🗺️ Live Truck Tracker</h2>
+          <span className="et-muted">Existing project component</span>
+        </div>
+        <WasteTruckTracker />
+      </section>
+    </main>
+  );
+}

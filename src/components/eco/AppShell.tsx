@@ -7,6 +7,7 @@ import { NAV } from "./nav";
 import { Button } from "@/components/ui/button";
 import { requestNotifications } from "@/lib/alerts";
 import { cn } from "@/lib/utils";
+import EcoVoiceAssistant from "@/components/eco/EcoVoiceAssistant";
 
 function NavList({ onNav }: { onNav?: () => void }) {
   const { pathname } = useLocation();
@@ -80,10 +81,22 @@ export function AppShell({ title, eyebrow, heading, description, image, children
           {children}
         </main>
       </div>
+      <EcoVoiceAssistant />
     </div>
   );
 }
 
-export function Panel({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("glass rounded-3xl p-5 shadow-card sm:p-6", className)}>{children}</div>;
+ export function Panel({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("glass rounded-3xl p-5 shadow-card sm:p-6", className)}>
+      {children}
+    </div>
+  );
 }
+

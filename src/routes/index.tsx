@@ -32,6 +32,20 @@ function Home() {
 
   return (
     <div>
+      return (
+  <div>
+    <a
+      href="https://swachhbharatmission.ddws.gov.in/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
+    >
+      Visit Swachh Bharat Mission ↗️
+    </a>
+
+    {/* Keep all your existing code below this */}
+  </div>
+);
       {/* HERO */}
       <section className="relative flex min-h-[100svh] flex-col overflow-hidden">
         <div className="absolute inset-0 -z-10" aria-hidden>

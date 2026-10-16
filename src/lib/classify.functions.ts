@@ -1,102 +1,247 @@
-import { createServerFn } from "@tanstack/react-start";
+ import { createServerFn } from "@tanstack/react-start";
 import { CATEGORIES } from "./categories";
 
-const MAX_LEN = 4_500_000; // ~3.3MB of base64
-const ALLOWED = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const MAX_LEN = 4_500_000;
 
-const schema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["is_clear", "category", "item_name", "confidence", "explanation", "recyclability", "preparation", "reuse", "disposal", "safety_notice"],
-  properties: {
-    is_clear: { type: "boolean", description: "False if the photo is blurry, dark, shows no waste item, or several mixed items so a reliable classification is not possible." },
-    category: { type: "string", enum: [...CATEGORIES] },
-    item_name: { type: "string" },
-    confidence: { type: "number", description: "Your self-assessed probability (0-1) that the category is correct." },
-    explanation: { type: "string", description: "1-2 sentences on the visual cues used." },
-    recyclability: { type: "string", enum: ["likely", "depends", "unlikely", "special"] },
-    preparation: { type: "array", items: { type: "string" } },
-    reuse: { type: "array", items: { type: "string" } },
-    disposal: { type: "array", items: { type: "string" } },
-    safety_notice: { type: ["string", "null"] },
-  },
+const ALLOWED =
+  /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+const INSTRUCTIONS = `
+You are an AI waste-sorting assistant.
+Identify the single main waste item in the provided image.
+
+Allowed categories:
+plastic, paper, glass, metal, organic, ewaste,
+textile, hazardous, general, unknown.
+
+Return ONLY a valid JSON object with these keys:
+is_clear, category, item_name, confidence, explanation,
+recyclability, preparation, reuse, disposal, safety_notice.
+
+Rules:
+- is_clear must be false if the image is unclear or the item cannot be identified.
+- If unclear, use category "unknown". Never guess.
+- category must be one of the allowed categories.
+- confidence must be a number between 0 and 1.
+- recyclability must be "likely", "depends", "unlikely", or "special".
+- preparation, reuse, and disposal must be arrays of short strings.
+- safety_notice must be a string or null.
+- Give general disposal guidance, not location-specific rules.
+- Mention appropriate safety precautions for hazardous or sharp items.
+- Return JSON only, without Markdown or code fences.
+`;
+
+type Classification = {
+  is_clear: boolean;
+  category: string;
+  item_name: string;
+  confidence: number;
+  explanation: string;
+  recyclability: "likely" | "depends" | "unlikely" | "special";
+  preparation: string[];
+  reuse: string[];
+  disposal: string[];
+  safety_notice: string | null;
 };
 
-const INSTRUCTIONS = `You are a waste-sorting assistant. Look at the photo and classify the single main waste item.
-Categories: plastic, paper (paper/cardboard), glass, metal, organic, ewaste (electronics, cables, batteries inside devices), textile, hazardous (loose batteries, paint, chemicals, medicines, bulbs, gas canisters), general (non-recyclable residual waste), unknown.
-Rules:
-- If the image is unclear, contains no waste item, or you cannot identify the material reliably, set is_clear=false and category="unknown" and explain what is wrong in "explanation". Do not guess.
-- For composite items, choose the dominant material and mention separation in preparation and safety_notice.
-- Keep each list item short (max ~15 words), 1-4 items per list. Empty lists are fine.
-- Disposal guidance must be general; never claim specific local rules. Add a safety_notice for hazardous, sharp, damaged or composite items, otherwise null.`;
+type Out =
+  | { ok: true; data: string }
+  | { ok: false; error: string; code: number };
 
-type Out = { ok: true; data: string } | { ok: false; error: string; code: number };
-
-export const classifyWaste = createServerFn({ method: "POST" })
+export const classifyWaste = createServerFn({
+  method: "POST",
+})
   .inputValidator((d: { image: string }) => {
-    if (!d || typeof d.image !== "string") throw new Error("Missing image");
-    if (d.image.length > MAX_LEN) throw new Error("Image is too large");
-    if (!ALLOWED.test(d.image.slice(0, 64) + "A")) throw new Error("Unsupported image format");
+    if (!d || typeof d.image !== "string") {
+      throw new Error("Missing image.");
+    }
+
+    if (d.image.length > MAX_LEN) {
+      throw new Error("Image is too large. Please use a smaller image.");
+    }
+
+    if (!ALLOWED.test(d.image)) {
+      throw new Error("Unsupported image format. Use JPEG, PNG, or WebP.");
+    }
+
     return d;
   })
   .handler(async ({ data }): Promise<Out> => {
-    const key = process.env["LOVABLE_API_KEY"];
-    if (!key) return { ok: false, code: 500, error: "AI service is not configured." };
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Lovable-AIG-SDK": "fetch" },
-      body: JSON.stringify({
-        model: "openai/gpt-6-astra",
-        stream: true,
-        store: false,
-        reasoning: { effort: "low" },
-        instructions: INSTRUCTIONS,
-        input: [{ role: "user", content: [
-          { type: "input_text", text: "Classify this waste item." },
-          { type: "input_image", image_url: data.image },
-        ] }],
-        text: { format: { type: "json_schema", name: "waste_classification", strict: true, schema } },
-      }),
-    });
-
-    if (!res.ok || !res.body) {
-      const msg = res.status === 429 ? "Too many scans right now. Please wait a moment and try again."
-        : res.status === 402 ? "AI credits have run out for this workspace. Add credits to keep scanning."
-        : res.status === 403 ? "AI access is currently blocked for this workspace."
-        : `AI service error (${res.status}).`;
-      return { ok: false, code: res.status, error: msg };
+    if (!apiKey) {
+      return {
+        ok: false,
+        code: 500,
+        error: "Gemini API key is missing. Check your .env file.",
+      };
     }
 
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let text = "";
-    let failure: string | null = null;
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let i;
-      while ((i = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, i);
-        buf = buf.slice(i + 2);
-        for (const line of frame.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (!payload || payload === "[DONE]") continue;
-          try {
-            const ev = JSON.parse(payload);
-            if (ev.type === "response.output_text.delta") text += ev.delta ?? "";
-            else if (ev.type === "response.refusal.delta" || ev.type === "response.failed" || ev.type === "error") failure = "The AI could not analyse this image.";
-          } catch { /* partial */ }
-        }
-      }
-    }
-    if (failure && !text) return { ok: false, code: 502, error: failure };
     try {
-      JSON.parse(text); return { ok: true, data: text };
-    } catch {
-      return { ok: false, code: 502, error: "The AI returned an unreadable answer. Please try again." };
+      const commaIndex = data.image.indexOf(",");
+      const imageHeader = data.image.slice(0, commaIndex);
+      const base64Image = data.image.slice(commaIndex + 1);
+      const mimeType = imageHeader
+        .slice("data:".length)
+        .split(";")[0];
+
+      const model = "gemini-3-flash-preview";
+
+      const url =
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: INSTRUCTIONS }],
+          },
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: "Classify this waste item. Return JSON only." },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Image,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                is_clear: { type: "BOOLEAN" },
+                category: {
+                  type: "STRING",
+                  enum: [...CATEGORIES],
+                },
+                item_name: { type: "STRING" },
+                confidence: { type: "NUMBER" },
+                explanation: { type: "STRING" },
+                recyclability: {
+                  type: "STRING",
+                  enum: ["likely", "depends", "unlikely", "special"],
+                },
+                preparation: {
+                  type: "ARRAY",
+                  items: { type: "STRING" },
+                },
+                reuse: {
+                  type: "ARRAY",
+                  items: { type: "STRING" },
+                },
+                disposal: {
+                  type: "ARRAY",
+                  items: { type: "STRING" },
+                },
+                safety_notice: {
+                  type: "STRING",
+                  nullable: true,
+                },
+              },
+              required: [
+                "is_clear",
+                "category",
+                "item_name",
+                "confidence",
+                "explanation",
+                "recyclability",
+                "preparation",
+                "reuse",
+                "disposal",
+                "safety_notice",
+              ],
+            },
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Gemini API error:", response.status, result);
+
+        const message =
+          response.status === 400
+            ? "Gemini rejected the request. Check the image and API request."
+            : response.status === 401 || response.status === 403
+              ? "Gemini API key is invalid or does not have access."
+              : response.status === 429
+                ? "Gemini quota exceeded. Check your API usage and limits."
+                : `Gemini API error (${response.status}). Check the server terminal.`;
+
+        return {
+          ok: false,
+          code: response.status,
+          error: message,
+        };
+      }
+
+      const text = result.candidates?.[0]?.content?.parts
+        ?.map((part: { text?: string }) => part.text ?? "")
+        .join("");
+
+      if (!text) {
+        console.error("Gemini returned no text:", result);
+
+        return {
+          ok: false,
+          code: 502,
+          error: "Gemini returned no classification. Please try again.",
+        };
+      }
+
+      let parsed: Classification;
+
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        console.error("Gemini returned invalid JSON:", text);
+
+        return {
+          ok: false,
+          code: 502,
+          error: "Gemini returned an unreadable result. Please try again.",
+        };
+      }
+
+      if (
+        typeof parsed.is_clear !== "boolean" ||
+        !CATEGORIES.includes(parsed.category as (typeof CATEGORIES)[number]) ||
+        typeof parsed.item_name !== "string" ||
+        typeof parsed.confidence !== "number" ||
+        !Array.isArray(parsed.preparation) ||
+        !Array.isArray(parsed.reuse) ||
+        !Array.isArray(parsed.disposal)
+      ) {
+        return {
+          ok: false,
+          code: 502,
+          error: "Gemini returned incomplete classification data.",
+        };
+      }
+
+      return {
+        ok: true,
+        data: JSON.stringify(parsed),
+      };
+    } catch (error) {
+      console.error("Gemini classification error:", error);
+
+      return {
+        ok: false,
+        code: 502,
+        error:
+          "Could not contact Gemini. Check your internet connection and API access.",
+      };
     }
   });

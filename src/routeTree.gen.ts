@@ -14,6 +14,7 @@ import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as DigitalTwinRouteImport } from './routes/digital-twin'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ImpactRouteImport } from './routes/impact'
+import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as RecommendationsRouteImport } from './routes/recommendations'
 import { Route as ScannerRouteImport } from './routes/scanner'
 
@@ -42,6 +43,11 @@ const ImpactRoute = ImpactRouteImport.update({
   path: '/impact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManagerRoute = ManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecommendationsRoute = RecommendationsRouteImport.update({
   id: '/recommendations',
   path: '/recommendations',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/digital-twin': typeof DigitalTwinRoute
   '/history': typeof HistoryRoute
   '/impact': typeof ImpactRoute
+  '/manager': typeof ManagerRoute
   '/recommendations': typeof RecommendationsRoute
   '/scanner': typeof ScannerRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/digital-twin': typeof DigitalTwinRoute
   '/history': typeof HistoryRoute
   '/impact': typeof ImpactRoute
+  '/manager': typeof ManagerRoute
   '/recommendations': typeof RecommendationsRoute
   '/scanner': typeof ScannerRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/digital-twin': typeof DigitalTwinRoute
   '/history': typeof HistoryRoute
   '/impact': typeof ImpactRoute
+  '/manager': typeof ManagerRoute
   '/recommendations': typeof RecommendationsRoute
   '/scanner': typeof ScannerRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/digital-twin'
     | '/history'
     | '/impact'
+    | '/manager'
     | '/recommendations'
     | '/scanner'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/digital-twin'
     | '/history'
     | '/impact'
+    | '/manager'
     | '/recommendations'
     | '/scanner'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/digital-twin'
     | '/history'
     | '/impact'
+    | '/manager'
     | '/recommendations'
     | '/scanner'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   DigitalTwinRoute: typeof DigitalTwinRoute
   HistoryRoute: typeof HistoryRoute
   ImpactRoute: typeof ImpactRoute
+  ManagerRoute: typeof ManagerRoute
   RecommendationsRoute: typeof RecommendationsRoute
   ScannerRoute: typeof ScannerRoute
 }
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImpactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/manager': {
+      id: '/manager'
+      path: '/manager'
+      fullPath: '/manager'
+      preLoaderRoute: typeof ManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recommendations': {
       id: '/recommendations'
       path: '/recommendations'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   DigitalTwinRoute: DigitalTwinRoute,
   HistoryRoute: HistoryRoute,
   ImpactRoute: ImpactRoute,
+  ManagerRoute: ManagerRoute,
   RecommendationsRoute: RecommendationsRoute,
   ScannerRoute: ScannerRoute,
 }
